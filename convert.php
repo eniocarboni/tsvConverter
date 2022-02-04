@@ -63,17 +63,19 @@ require 'vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
+require 'config.php';
+
 /* 
  * Check that a file and a folder exists
  * ------------------------------------
  */
 if (!file_exists($fileName)) {
-	echo date('H:i:s') . " ERROR: given file does not exist" . EOL;
+	echo date('H:i:s') . " ERROR: given file '$fileName' does not exist" . EOL;
 	die();
 }
 
 if (!file_exists($filesFolder)) {
-	echo date('H:i:s') . " ERROR: given folder does not exist" . EOL;
+	echo date('H:i:s') . " ERROR: given folder '$filesFolder' does not exist" . EOL;
 	die();
 }
 

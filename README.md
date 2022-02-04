@@ -13,6 +13,8 @@ Make sure you can run php from command line.
 Go to the tsvConverter folder and install or update dependencies via Composer (https://getcomposer.org/). The conversion tool uses https://github.com/PHPOffice/PhpSpreadsheet for reading sheets.
 
     composer install
+    cp config.TEMPLATE.php config.php
+    # edit config.php to configure all your variables
 
 ## Usage 
 
