@@ -265,35 +265,35 @@ $submissionId = 1;
 				
 				$fileContents = file_get_contents ($file);
 				
-				fwrite ($xmlfile,"\t\t\t<submission_file xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" stage=\"proof\" id=\"".$fileId."\" xsi:schemaLocation=\"http://pkp.sfu.ca native.xsd\">\r\n");
+				fwrite ($xmlfile,"\t\t\t<submission_file xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" stage=\"proof\" genre=\"". $article['fileGenre'.$i] ."\" id=\"".$fileId."\" file_id=\"".$fileId."\" xsi:schemaLocation=\"http://pkp.sfu.ca native.xsd\">\r\n");
 				
 				if (empty($article['fileGenre'.$i]))
 					$article['fileGenre'.$i] = "Article Text";
 				
-				fwrite ($xmlfile,"\t\t\t\t<revision number=\"1\" genre=\"".trim($article['fileGenre'.$i])."\" filename=\"". trim(htmlentities($article['file'.$i], ENT_XML1)) . "\" filesize=\"".$fileSize."\" filetype=\"".$fileType."\" uploader=\"".$uploader."\">\r\n");
 				
 				fwrite ($xmlfile,"\t\t\t\t<name locale=\"".$articleLocale."\">". trim(htmlentities($article['file'.$i], ENT_XML1)) ."</name>\r\n");				
+				fwrite ($xmlfile,"\t\t\t\t<file id=\"".$fileId."\" filesize=\"$fileSize\" extension=\"pdf\">");
 				fwrite ($xmlfile,"\t\t\t\t<embed encoding=\"base64\">");
 				fwrite ($xmlfile, base64_encode($fileContents));
 				fwrite ($xmlfile,"\t\t\t\t</embed>\r\n");
+				fwrite ($xmlfile,"\t\t\t\t</file>");
 				
-				fwrite ($xmlfile,"\t\t\t\t</revision>\r\n");				
 				fwrite ($xmlfile,"\t\t\t</submission_file>\r\n\r\n");
 
 				# save galley data
-				$galleys[$fileId] = "\t\t\t\t<article_galley xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" locale=\"".$locales[trim($article['fileLocale'.$i])]."\" approved=\"false\" xsi:schemaLocation=\"http://pkp.sfu.ca native.xsd\">\r\n";
+				$galleys[$fileId] = "\t\t\t\t<article_galley xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" locale=\"".$fileLocale."\" approved=\"false\" xsi:schemaLocation=\"http://pkp.sfu.ca native.xsd\">\r\n";
 				$galleys[$fileId] .= "\t\t\t\t\t<name locale=\"".$fileLocale."\">".$article['fileLabel'.$i]."</name>\r\n";
 
 				$galleys[$fileId] .= searchLocalisations('fileLabel'.$i, $article, 5, 'name');
 				$galleys[$fileId] .= "\t\t\t\t\t<seq>".$fileSeq."</seq>\r\n";
-				$galleys[$fileId] .= "\t\t\t\t\t<submission_file_ref id=\"".$fileId."\" revision=\"1\"/>\r\n";
+				$galleys[$fileId] .= "\t\t\t\t\t<submission_file_ref id=\"".$fileId."\"/>\r\n";
 				$galleys[$fileId] .= "\t\t\t\t</article_galley>\r\n\r\n";
 
 				$fileId++;
 			}
 			if (preg_match("@^https?://@", $article['file'.$i]) && $article['file'.$i] != "") {
 				# save remote galley data
-				$galleys[$fileId] = "\t\t\t\t<article_galley xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" locale=\"".$locales[trim($article['fileLocale'.$i])]."\" approved=\"false\" xsi:schemaLocation=\"http://pkp.sfu.ca native.xsd\">\r\n";
+				$galleys[$fileId] = "\t\t\t\t<article_galley xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" locale=\"".$fileLocale."\" approved=\"false\" xsi:schemaLocation=\"http://pkp.sfu.ca native.xsd\">\r\n";
 				$galleys[$fileId] .= "\t\t\t\t\t<name locale=\"".$fileLocale."\">".$article['fileLabel'.$i]."</name>\r\n";
 				$galleys[$fileId] .= searchLocalisations('fileLabel'.$i, $article, 5, 'name');
 				$galleys[$fileId] .= "\t\t\t\t\t<seq>".$fileSeq."</seq>\r\n";
@@ -579,7 +579,12 @@ function createArray($sheet) {
 				$a[$key] = $sheet->getCellByColumnAndRow($column,$row)->getFormattedValue();
 			}
 		}
-		$array[$row] = $a;
+		if ( ! (empty($a['title']) && empty($a['seq']) && empty($a['issueYear']) )) {
+			$array[$row] = $a;
+		}
+		else {
+			echo "Discarding row $row: title, seq and issueYear are empy ". $a['title'], EOL;
+		}
 	}
 	
 	return $array;
@@ -605,6 +610,7 @@ function countMaxFiles($sheet) {
 	$headerRow = $sheet->rangeToArray('A1:' . $highestcolumn . "1");
 	$header = $headerRow[0];
 	$fileValues = array();
+	$fileValues[] = 1;
 	foreach ($header as $headerValue) {
 		if (strpos($headerValue, "fileLabel") !== false) {
 			$fileValues[] = (int) trim(str_replace("fileLabel", "", $headerValue));
