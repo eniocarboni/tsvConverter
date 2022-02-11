@@ -22,15 +22,15 @@ Before importing the created data to your production server, **you should try to
 
 Usage:
 
-	php convert.php sheetFilename filesFolderName [-v]
+	php convert.php sheetFilename filesFolderName [outfilexml|''] [-v|-d]
 
-Convert:
+Convert to STDOUT:
 
 	php convert.php sheetFilename filesFolderName
 
 Only validate by adding -v:
 
-	php convert.php sheetFilename filesFolderName -v
+	php convert.php sheetFilename filesFolderName '' -v
 
 
 ### Step by step instructions

@@ -11,6 +11,7 @@
 $fileName = '';
 $files = "files";
 $onlyValidate = 0;
+$debug = 0;
 
 // Get arguments from command line
 # $argv[1] fileName
@@ -21,10 +22,27 @@ if (isset($argv[1])) {
 if (isset($argv[2])) {
 	$files = $argv[2];
 }
-# $argv[3] validate parameter
-if (isset($argv[3]) && $argv[3] == '-v') {
+# $argv[3] output xml
+if (isset($argv[3]) and ! empty($argv[3])) {
+	$outfile = $argv[3];
+}
+else {
+	$outfile = 'php://stdout';
+}
+# $argv[4] validate parameter
+if (isset($argv[4]) && $argv[4] == '-v') {
 	$onlyValidate = 1;
 }
+if (isset($argv[4]) && $argv[4] == '-d') {
+	$debug = 1;
+}
+
+/** 
+ * $split_output_by_issue_date_published: 
+ * if 1 and $outfile !='php://stdout' split output xml in several file based on IssueDatepublished
+ */
+
+$split_output_by_issue_date_published=0;
 
 // The default locale. For alternative locales use language field. For additional locales use locale:fieldName.
 $defaultLocale = 'en_US';
@@ -50,7 +68,15 @@ $locales = array(
 				'no' => 'nb_NO',
 				'da' => 'da_DK',
 				'es' => 'es_ES',
+				'it' => 'it_IT',
 			);
+/**
+ * $copy_if_language_does_not_exist:
+ * If a multilingual metadata is not present in the .xlsx file in one of these languages, 
+ * it must be added identical to the default language.
+ */
+//$copy_if_language_does_not_exist= array('it','en');
+$copy_if_language_does_not_exist= array();
 
 // PHPExcel settings
 error_reporting(E_ALL);
@@ -70,12 +96,12 @@ require 'config.php';
  * ------------------------------------
  */
 if (!file_exists($fileName)) {
-	echo date('H:i:s') . " ERROR: given file '$fileName' does not exist" . EOL;
+	echo '<error>' . date('H:i:s') . " ERROR: given file '$fileName' does not exist" . EOL .'</error>';
 	die();
 }
 
 if (!file_exists($filesFolder)) {
-	echo date('H:i:s') . " ERROR: given folder '$filesFolder' does not exist" . EOL;
+	echo '<error>' . date('H:i:s') . " ERROR: given folder '$filesFolder' does not exist" . EOL .'</error>';
 	die();
 }
 
@@ -83,14 +109,14 @@ if (!file_exists($filesFolder)) {
  * Load Excel data to an array
  * ------------------------------------
  */
-echo date('H:i:s') , " Creating a new PHPExcel object" , EOL;
+disp("Creating a new PHPExcel object");
 
 $objReader = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($fileName);
 $objReader->setReadDataOnly(false);
 $objPhpSpreadsheet = $objReader->load($fileName);
 $sheet = $objPhpSpreadsheet->setActiveSheetIndex(0);
 
-echo date('H:i:s') , " Creating an array" , EOL;
+disp("Creating an array");
 
 $articles = createArray($sheet);
 $maxAuthors = countMaxAuthors($sheet);
@@ -101,17 +127,17 @@ $maxFiles = countMaxFiles($sheet);
  * -----------
  */
 
-echo date('H:i:s') , " Validating data" , EOL;
+disp("Validating data");
 
 $errors = validateArticles($articles);
 if ($errors != ""){
-	echo $errors, EOL;
+	echo '<error>' .$errors, EOL . '</error>';
 	die();	
 }
 
 # If only validation is selected, exit
 if ($onlyValidate == 1){
-	echo date('H:i:s') , " Validation complete " , EOL;
+	disp("Validation complete");
 	die();
 }
 
@@ -121,7 +147,7 @@ if ($onlyValidate == 1){
  * ----------------------------------------
  */
 
-echo date('H:i:s') , " Preparing data for output" , EOL;
+disp("Preparing data for output");
 
 # Save section data
 foreach ($articles as $article){
@@ -134,14 +160,19 @@ foreach ($articles as $article){
  * --------------------
  */
 
-echo date('H:i:s') , " Starting XML output" , EOL;
+disp("Starting XML output");
 $currentIssueDatepublished = null;	
 $currentYear = null;
 $fileId = 1;
 $authorId = 1;
 $submissionId = 1;
 
-	foreach ($articles as $key => $article){
+if (! ($split_output_by_issue_date_published == 1 && $outfile != 'php://stdout') ) {
+	$xmlfile = fopen ($outfile,'w');
+	fwrite ($xmlfile,"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n");
+	fwrite ($xmlfile,"<issues xmlns=\"http://pkp.sfu.ca\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://pkp.sfu.ca native.xsd\">\r\n");
+}
+foreach ($articles as $key => $article){
 	
 	# Issue :: if issueDatepublished has changed, start a new issue
 	if ($currentIssueDatepublished != $article['issueDatepublished']){
@@ -155,24 +186,24 @@ $submissionId = 1;
 		}
 		
 		
-		# Start a new XML file if year changes
-		if ($newYear != $currentYear){
+		# Start a new XML file if year changes and $split_output_by_issue_date_published == 1 and not output on STDOUT
+		if ($newYear != $currentYear && $split_output_by_issue_date_published == 1 && $outfile != 'php://stdout') {
 
 			if ($currentYear != null){
-				echo date('H:i:s') , " Closing XML file" , EOL;
+				disp("Closing XML file");
 				fwrite ($xmlfile,"</issues>\r\n\r\n");
 			}
 			
-			echo date('H:i:s') , " Creating a new XML file ", $newYear, ".xml" , EOL;
+			disp("Creating a new XML file ". $newYear . "-" . $outfile);
 			
-			$xmlfile = fopen ($newYear.'.xml','w');
+			$xmlfile = fopen ($newYear."-".$outfile,'w');
 			fwrite ($xmlfile,"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n");
 			fwrite ($xmlfile,"<issues xmlns=\"http://pkp.sfu.ca\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://pkp.sfu.ca native.xsd\">\r\n");
 		}
 		
 		fwrite ($xmlfile,"\t<issue xmlns=\"http://pkp.sfu.ca\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" published=\"1\" current=\"0\" xsi:schemaLocation=\"http://pkp.sfu.ca native.xsd\">\r\n\r\n");
 		
-		echo date('H:i:s') , " Adding issue with publishing date ", $article['issueDatepublished'] , EOL;
+		disp("Adding issue with publishing date ".$article['issueDatepublished']);
 
 		# Issue description
 		if (!empty($article['issueDescription']))
@@ -188,10 +219,10 @@ $submissionId = 1;
 		fwrite ($xmlfile,"\t\t\t<year><![CDATA[".$article['issueYear']."]]></year>\r\n");
 		
 		if (!empty($article['issueTitle'])){
-			fwrite ($xmlfile,"\t\t\t<title><![CDATA[".$article['issueTitle']."]]></title>\r\n");
+			fwrite ($xmlfile,"\t\t\t<title locale=\"".$defaultLocale."\"><![CDATA[".$article['issueTitle']."]]></title>\r\n");
 		}
 		# Add alternative localisations for the issue title
-		fwrite ($xmlfile, searchLocalisations('issueTitle', $article, 3));
+		fwrite ($xmlfile, searchLocalisations('issueTitle', $article, 3, 'title'));
 		
 		fwrite ($xmlfile,"\t\t</issue_identification>\r\n\r\n");
 		
@@ -205,7 +236,12 @@ $submissionId = 1;
 				fwrite ($xmlfile,"\t\t\t<section ref=\"".htmlentities($sectionAbbrev, ENT_XML1)."\">\r\n");
 				fwrite ($xmlfile,"\t\t\t\t<abbrev locale=\"".$defaultLocale."\">".htmlentities($sectionAbbrev, ENT_XML1)."</abbrev>\r\n");
 				fwrite ($xmlfile,"\t\t\t\t<title locale=\"".$defaultLocale."\"><![CDATA[".$sectionTitle."]]></title>\r\n");
-				fwrite ($xmlfile, searchLocalisations('sectionTitle', $article, 3));
+				foreach ($copy_if_language_does_not_exist as $value) {
+					if ($locales[$value] != $defaultLocale) {
+						fwrite ($xmlfile,"\t\t\t\t<abbrev locale=\"".$locales[$value]."\">".htmlentities($sectionAbbrev, ENT_XML1)."</abbrev>\r\n");
+						fwrite ($xmlfile,"\t\t\t\t<title locale=\"".$locales[$value]."\"><![CDATA[".$sectionTitle."]]></title>\r\n");
+					}
+				}
 				fwrite ($xmlfile,"\t\t\t</section>\r\n");
 			}
 
@@ -224,7 +260,7 @@ $submissionId = 1;
 
 
 	# Article
-	echo date('H:i:s') , " Adding article: ", $article['title'] , EOL;
+	disp("Adding article: ".$article['title']);
 
 	# Check if language has an alternative default locale
 	# If it does, use the locale in all fields
@@ -260,7 +296,7 @@ $submissionId = 1;
 					$fileType = $fileinfo->file($file, FILEINFO_MIME_TYPE);
 				}
 				else {
-					echo date('H:i:s') , " ERROR: You need to enable fileinfo or mime_magic extension.", EOL;
+					disp("ERROR: You need to enable fileinfo or mime_magic extension.");
 				}
 				
 				$fileContents = file_get_contents ($file);
@@ -451,13 +487,13 @@ $submissionId = 1;
 	}
 
 	# After exiting the loop close the last XML file
-	echo date('H:i:s') , " Closing XML file" , EOL;
+	disp("Closing XML file");
 	fwrite ($xmlfile,"\t\t</articles>\r\n");
 	fwrite ($xmlfile,"\t</issue>\r\n\r\n");	
 	fwrite ($xmlfile,"</issues>\r\n\r\n");
 
 
-	echo date('H:i:s') , " Conversion finished" , EOL;
+	disp("Conversion finished");
 
 
 	
@@ -470,9 +506,17 @@ $submissionId = 1;
 
 # Function for searching alternative locales for a given field
 function searchLocalisations($key, $input, $intend, $tag = null, $flags = null) {
-    global $locales;
+	global $locales;
+	global $defaultLocale;
+	global $copy_if_language_does_not_exist;
+	$articleLocale = $defaultLocale;
+	if (!empty($input['language'])){
+		$articleLocale = $locales[trim($input['language'])];
+	}
+
 	
-	if ($tag == "") $tag = $key;
+	//if ($tag == "") $tag = $key;
+	if (empty($tag)) $tag = $key;
 	
 	$nodes = "";
 	$pattern = "/:".$key."/";
@@ -486,7 +530,16 @@ function searchLocalisations($key, $input, $intend, $tag = null, $flags = null) 
 			$nodes .= "<".$tag." locale=\"".$locales[$shortLocale[0]]."\">".$value."</".$tag.">\r\n";
 		}
 	}
-	
+	$v='';
+	foreach ($copy_if_language_does_not_exist as $keyval => $value){
+		$nowDefLocale=preg_match('/^(issue)|(section)/',$key) ? $defaultLocale : $articleLocale;
+		if (empty($input[$value.":".$tag]) && $locales[$value] != $nowDefLocale && !empty($input[$key])) {
+			$v=$input[$key];
+			if (strpos($v, "\n") !== false || strpos($v, "&") !== false || strpos($v, "<") !== false || strpos($v, ">") !== false ) $v = "<![CDATA[".nl2br($v)."]]>";
+			for ($i = 0; $i < $intend; $i++) $nodes .= "\t";
+			$nodes .= "<".$tag." locale=\"".$locales[$value]."\">".$v."</".$tag.">\r\n";
+		}
+	}
 	return $nodes;
 	
 }
@@ -583,7 +636,7 @@ function createArray($sheet) {
 			$array[$row] = $a;
 		}
 		else {
-			echo "Discarding row $row: title, seq and issueYear are empy ". $a['title'], EOL;
+			disp("Discarding row $row: title, seq and issueYear are empy ". $a['title']);
 		}
 	}
 	
@@ -674,5 +727,13 @@ function validateArticles($articles) {
 	
 	return $errors;
 
+}
+
+function disp($str) {
+	global $debug;
+	if ($debug == 1) {
+		$msg=date('H:i:s') . " ".$str. EOL;
+		fwrite(STDERR, $msg);
+	}
 }
 
