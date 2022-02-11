@@ -235,10 +235,14 @@ foreach ($articles as $key => $article){
 			foreach ($sections[$article['issueDatepublished']] as $sectionAbbrev => $sectionTitle){
 				fwrite ($xmlfile,"\t\t\t<section ref=\"".htmlentities($sectionAbbrev, ENT_XML1)."\">\r\n");
 				fwrite ($xmlfile,"\t\t\t\t<abbrev locale=\"".$defaultLocale."\">".htmlentities($sectionAbbrev, ENT_XML1)."</abbrev>\r\n");
-				fwrite ($xmlfile,"\t\t\t\t<title locale=\"".$defaultLocale."\"><![CDATA[".$sectionTitle."]]></title>\r\n");
 				foreach ($copy_if_language_does_not_exist as $value) {
 					if ($locales[$value] != $defaultLocale) {
 						fwrite ($xmlfile,"\t\t\t\t<abbrev locale=\"".$locales[$value]."\">".htmlentities($sectionAbbrev, ENT_XML1)."</abbrev>\r\n");
+					}
+				}
+				fwrite ($xmlfile,"\t\t\t\t<title locale=\"".$defaultLocale."\"><![CDATA[".$sectionTitle."]]></title>\r\n");
+				foreach ($copy_if_language_does_not_exist as $value) {
+					if ($locales[$value] != $defaultLocale) {
 						fwrite ($xmlfile,"\t\t\t\t<title locale=\"".$locales[$value]."\"><![CDATA[".$sectionTitle."]]></title>\r\n");
 					}
 				}
@@ -320,7 +324,7 @@ foreach ($articles as $key => $article){
 				$galleys[$fileId] = "\t\t\t\t<article_galley xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" locale=\"".$fileLocale."\" approved=\"false\" xsi:schemaLocation=\"http://pkp.sfu.ca native.xsd\">\r\n";
 				$galleys[$fileId] .= "\t\t\t\t\t<name locale=\"".$fileLocale."\">".$article['fileLabel'.$i]."</name>\r\n";
 
-				$galleys[$fileId] .= searchLocalisations('fileLabel'.$i, $article, 5, 'name');
+				//$galleys[$fileId] .= searchLocalisations('fileLabel'.$i, $article, 5, 'name');
 				$galleys[$fileId] .= "\t\t\t\t\t<seq>".$fileSeq."</seq>\r\n";
 				$galleys[$fileId] .= "\t\t\t\t\t<submission_file_ref id=\"".$fileId."\"/>\r\n";
 				$galleys[$fileId] .= "\t\t\t\t</article_galley>\r\n\r\n";
