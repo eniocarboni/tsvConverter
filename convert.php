@@ -166,16 +166,18 @@ $currentYear = null;
 $fileId = 1;
 $authorId = 1;
 $submissionId = 1;
+$publicationSeq=0;
 
 if (! ($split_output_by_issue_date_published == 1 && $outfile != 'php://stdout') ) {
 	$xmlfile = fopen ($outfile,'w');
-	fwrite ($xmlfile,"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n");
+	fwrite ($xmlfile,"<?xml version=\"1.0\" encoding=\"UTF-8\"?".">\r\n");
 	fwrite ($xmlfile,"<issues xmlns=\"http://pkp.sfu.ca\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://pkp.sfu.ca native.xsd\">\r\n");
 }
 foreach ($articles as $key => $article){
-	
+
 	# Issue :: if issueDatepublished has changed, start a new issue
 	if ($currentIssueDatepublished != $article['issueDatepublished']){
+		$publicationSeq=0;
 		
 		$newYear = date('Y', strtotime($article['issueDatepublished']));
 
@@ -344,7 +346,7 @@ foreach ($articles as $key => $article){
 		}
 
 		# Publication
-		fwrite ($xmlfile,"\t\t\t<publication xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" locale=\"".$articleLocale."\" version=\"1\" status=\"3\" primary_contact_id=\"".$authorId."\" url_path=\"\" seq=\"0\" date_published=\"".$article['issueDatepublished']."\" section_ref=\"".htmlentities($article['sectionAbbrev'], ENT_XML1)."\" access_status=\"0\" xsi:schemaLocation=\"http://pkp.sfu.ca native.xsd\">\r\n\r\n");
+		fwrite ($xmlfile,"\t\t\t<publication xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" locale=\"".$articleLocale."\" version=\"1\" status=\"3\" primary_contact_id=\"".$authorId."\" url_path=\"\" seq=\"".$publicationSeq."\" date_published=\"".$article['issueDatepublished']."\" section_ref=\"".htmlentities($article['sectionAbbrev'], ENT_XML1)."\" access_status=\"0\" xsi:schemaLocation=\"http://pkp.sfu.ca native.xsd\">\r\n\r\n");
 		fwrite ($xmlfile,"\t\t\t\t<id type=\"internal\" advice=\"ignore\">".$submissionId."</id>\r\n\r\n");
 
 		# DOI
@@ -486,6 +488,7 @@ foreach ($articles as $key => $article){
 		}
 
 		$submissionId++;
+		$publicationSeq++;
 		fwrite ($xmlfile,"\t\t\t</publication>\r\n\r\n");
 		fwrite ($xmlfile,"\t\t</article>\r\n\r\n");
 	}
